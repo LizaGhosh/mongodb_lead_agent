@@ -1,0 +1,18 @@
+# Preference Analysis Service Prompts
+
+system_message: "You are a preference extraction assistant. Return only valid JSON."
+
+user_prompt_template: |
+  Analyze this user comment about what they want from networking and extract:
+  1. Additional industries/companies mentioned
+  2. Custom criteria (e.g., "Series A or later", "remote-first culture")
+  3. Value indicators (what makes contacts valuable)
+  4. Special requirements (geographic, cultural, etc.)
+  5. Exclusion criteria (what to avoid)
+
+  Comment: {comments}
+
+  Return as JSON with keys: additional_industries, custom_criteria, value_indicators, special_requirements, exclusion_criteria
+
+model: "gpt-3.5-turbo"
+temperature: 0.3

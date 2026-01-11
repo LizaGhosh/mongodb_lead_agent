@@ -1,0 +1,98 @@
+# Categorization Agent Prompts
+
+system_message: "You are a contact prioritization assistant. Analyze contacts and assign priority groups based on conversation content, person profile, persona, urgency level, and intent match with user preferences."
+
+few_shot_examples: |
+  Example 1:
+  User Use Case: sales
+  User Intent: "Looking for fintech companies, Series B or later, with budget for AI solutions"
+  Contact: John Smith, CTO at FinTechCorp (Series B, 200 employees)
+  Conversation: "Discussed their current AI infrastructure challenges. They have a $500K budget allocated for Q2. John mentioned they're evaluating 3 vendors and need to decide by end of month. He's the decision maker."
+  Analysis:
+  - Persona: Decision maker (CTO), high authority
+  - Urgency: High (decision timeline: end of month)
+  - Intent Match: Perfect match (fintech, Series B, budget mentioned, decision maker)
+  - Conversation Quality: High (specific budget, timeline, decision authority)
+  Result: {"priority_group": "P0", "score": 0.95, "reasons": ["Perfect industry match (fintech)", "Decision maker with budget authority", "High urgency (month-end deadline)", "Specific budget mentioned ($500K)", "Strong intent alignment"]}
+
+  Example 2:
+  User Use Case: job_hunting
+  User Intent: "Looking for VP Engineering roles at Series A+ startups in healthcare tech"
+  Contact: Sarah Johnson, VP Engineering at HealthTech Startup (Series A, 50 employees)
+  Conversation: "Sarah mentioned they're hiring 2 senior engineers. The role would involve leading a team of 10. They're looking for someone with healthcare domain experience. Interview process is 3 rounds."
+  Analysis:
+  - Persona: Hiring manager (VP Engineering), relevant role
+  - Urgency: Medium (actively hiring, but no immediate deadline)
+  - Intent Match: Strong match (VP Engineering, Series A, healthcare tech)
+  - Conversation Quality: Good (specific role details, team size, process)
+  Result: {"priority_group": "P0", "score": 0.85, "reasons": ["Exact role match (VP Engineering)", "Industry match (healthcare tech)", "Series A stage match", "Active hiring with specific needs", "Relevant persona (hiring manager)"]}
+
+  Example 3:
+  User Use Case: networking
+  User Intent: "Building connections in the tech community, interested in AI/ML practitioners"
+  Contact: Mike Chen, Software Engineer at BigTech Corp
+  Conversation: "Mike works on internal tools. We chatted about general tech trends. He mentioned he's interested in learning more about AI but doesn't work directly with it."
+  Analysis:
+  - Persona: Individual contributor, not decision maker
+  - Urgency: Low (no specific timeline or need)
+  - Intent Match: Partial (tech industry, but not AI/ML practitioner)
+  - Conversation Quality: Low (general discussion, no specific value)
+  Result: {"priority_group": "P2", "score": 0.35, "reasons": ["Industry match (tech)", "Not an AI/ML practitioner (intent mismatch)", "No decision-making authority", "Low urgency", "General conversation without specific value"]}
+
+  Example 4:
+  User Use Case: sales
+  User Intent: "Targeting enterprise companies (1000+ employees) in finance sector for security solutions"
+  Contact: Lisa Wang, Security Manager at FinanceCorp (Enterprise, 5000 employees)
+  Conversation: "Lisa mentioned they're evaluating security vendors. They had a breach last quarter and need to upgrade. Budget is approved, looking to implement within 6 months. She reports to CISO."
+  Analysis:
+  - Persona: Influencer (Security Manager reporting to CISO)
+  - Urgency: High (post-breach, 6-month timeline)
+  - Intent Match: Strong (enterprise, finance, security need)
+  - Conversation Quality: High (specific need, timeline, budget approved)
+  Result: {"priority_group": "P0", "score": 0.90, "reasons": ["Perfect company size match (enterprise)", "Industry match (finance)", "High urgency (post-breach situation)", "Budget approved", "Clear timeline (6 months)", "Influencer persona"]}
+
+  Example 5:
+  User Use Case: job_hunting
+  User Intent: "Seeking product manager roles at mid-size companies in e-commerce"
+  Contact: Alex Rodriguez, Product Manager at EcomStartup (Series A, 150 employees)
+  Conversation: "Alex mentioned they're not hiring right now but might have openings next quarter. He gave me his LinkedIn. We discussed product management challenges."
+  Analysis:
+  - Persona: Peer (same role), potential referral
+  - Urgency: Low (no immediate opening)
+  - Intent Match: Good (product manager, e-commerce, mid-size)
+  - Conversation Quality: Medium (connection made, future potential)
+  Result: {"priority_group": "P1", "score": 0.60, "reasons": ["Role match (product manager)", "Industry match (e-commerce)", "Company size appropriate", "No immediate opportunity", "Future potential (next quarter)", "Good connection established"]}
+
+user_prompt_template: |
+  {few_shot_examples}
+  
+  Now categorize this contact:
+  
+  User Use Case: {use_case}
+  User Intent: "{user_intent}"
+  User Goals: "{user_goals}"
+  User Industries: {industries}
+  User Company Sizes: {company_sizes}
+  User Job Titles: {job_titles}
+  User Custom Criteria: {custom_criteria}
+  User Value Indicators: {value_indicators}
+  
+  Contact Information:
+  - Name: {name}
+  - Company: {company}
+  - Job Title: {job_title}
+  - Meeting Summary: {summary}
+  - Conversation Text: {conversation_text}
+  
+  Analyze:
+  1. Persona: What is the person's role and authority level? (decision maker, influencer, peer, etc.)
+  2. Urgency: Is there a timeline, deadline, or immediate need mentioned?
+  3. Intent Match: How well does this contact match the user's stated intent and preferences?
+  4. Conversation Quality: Depth of discussion, specific details mentioned, commitments made
+  5. Value Indicators: Does the conversation mention things the user values?
+  
+  Return as JSON with keys: priority_group (P0/P1/P2), score (0.0-1.0), reasons (array of strings), persona (string), urgency_level (high/medium/low), intent_match_score (0.0-1.0)
+
+model: "gpt-3.5-turbo"
+temperature: 0.3
+response_format: "json_object"

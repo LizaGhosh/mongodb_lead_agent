@@ -1,0 +1,17 @@
+# Extraction Agent Prompts
+
+system_message: "You are an information extraction assistant. Return only valid JSON."
+
+user_prompt_template: |
+  Extract the following information from this conversation text:
+  - Person's name
+  - Company name
+  - Job title/designation
+  - Any contact information mentioned
+
+  Text: {text}
+
+  Return as JSON with keys: name, company, job_title, contact_info
+
+model: "gpt-3.5-turbo"
+temperature: 0.3
