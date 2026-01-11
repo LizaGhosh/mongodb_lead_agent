@@ -48,17 +48,36 @@ if os.getenv('VERCEL'):
     from fastapi import Request
     from fastapi.responses import JSONResponse
     import logging
+    import traceback
     logger = logging.getLogger(__name__)
     
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
+        # Log request details - these will appear in Vercel logs
+        print(f"[VERCEL LOG] ========== REQUEST START ==========")
+        print(f"[VERCEL LOG] Method: {request.method}")
+        print(f"[VERCEL LOG] Path: {request.url.path}")
+        print(f"[VERCEL LOG] Query: {dict(request.query_params)}")
+        print(f"[VERCEL LOG] Headers: {dict(request.headers)}")
+        
         logger.info(f"[VERCEL] Request: {request.method} {request.url.path}")
         logger.info(f"[VERCEL] Query params: {dict(request.query_params)}")
+        
         try:
             response = await call_next(request)
+            print(f"[VERCEL LOG] Response Status: {response.status_code}")
+            print(f"[VERCEL LOG] ========== REQUEST END ==========")
             logger.info(f"[VERCEL] Response status: {response.status_code}")
             return response
         except Exception as e:
+            # Print full error details - these will show in Vercel logs
+            print(f"[VERCEL LOG] ========== ERROR OCCURRED ==========")
+            print(f"[VERCEL LOG] Error Type: {type(e).__name__}")
+            print(f"[VERCEL LOG] Error Message: {str(e)}")
+            print(f"[VERCEL LOG] Traceback:")
+            print(traceback.format_exc())
+            print(f"[VERCEL LOG] =====================================")
+            
             logger.error(f"[VERCEL] Error processing request: {str(e)}", exc_info=True)
             # Check if it's a MongoDB connection error
             if "MongoDB" in str(e) or "Connection" in str(e) or "pymongo" in str(e).lower():
@@ -91,23 +110,53 @@ def health():
 @app.get("/api/health/db")
 def health_db():
     """Health check endpoint with MongoDB connection test"""
+    # Force print to test logging
+    print("=" * 80)
+    print("[HEALTH CHECK] Testing MongoDB connection...")
+    print(f"[HEALTH CHECK] Timestamp: {datetime.now().isoformat()}")
+    
     try:
         from database.connection import get_database
         db = get_database()
         # Test MongoDB connection
         db.admin.command('ping')
+        print("[HEALTH CHECK] ✅ MongoDB connection successful")
+        print("=" * 80)
         return {
             "status": "healthy",
             "database": "connected",
             "mongodb": "accessible"
         }
     except Exception as e:
+        print(f"[HEALTH CHECK] ❌ MongoDB connection failed: {str(e)}")
+        print("=" * 80)
         return {
             "status": "unhealthy",
             "database": "disconnected",
             "error": str(e),
             "message": "MongoDB connection failed. Check network access settings in MongoDB Atlas."
         }
+
+@app.get("/api/test-logs")
+def test_logs():
+    """Test endpoint to verify logging is working in Vercel"""
+    import sys
+    print("=" * 80)
+    print("[TEST LOGS] This is a test log message")
+    print(f"[TEST LOGS] Python version: {sys.version}")
+    print(f"[TEST LOGS] Timestamp: {datetime.now().isoformat()}")
+    print("[TEST LOGS] If you see this in Vercel logs, logging is working!")
+    print("=" * 80)
+    
+    # Also use logger
+    logger = logging.getLogger(__name__)
+    logger.info("[TEST LOGS] Logger test message")
+    
+    return {
+        "message": "Check Vercel logs for test messages",
+        "timestamp": datetime.now().isoformat(),
+        "python_version": sys.version
+    }
 
 if __name__ == "__main__":
     import uvicorn
