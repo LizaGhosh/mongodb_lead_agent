@@ -1,0 +1,6 @@
+# OCR Service Prompts
+
+text_prompt: "Extract all text from this image. Include names, companies, job titles, contact information, and any other relevant text. Return the text in a structured format."
+
+model: "gpt-4o"
+max_tokens: 500

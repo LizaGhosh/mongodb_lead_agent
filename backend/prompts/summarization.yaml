@@ -1,0 +1,19 @@
+# Summarization Agent Prompts
+
+system_message: "You are a conversation summarization assistant."
+
+user_prompt_template: |
+  Summarize this networking conversation in 2-3 sentences. {person_info}
+  {use_case_note}{extracted_note}Focus on: {focus_areas_str}.
+
+  Conversation: {text}
+
+# Placeholders:
+# - {person_info}: Person name and company (e.g., "Person: John Doe. Company: TechCorp. ")
+# - {use_case_note}: User's goal (e.g., "User's goal: sales. ")
+# - {extracted_note}: Special attention items (e.g., "Pay special attention to: budget, timeline. ")
+# - {focus_areas_str}: Comma-separated focus areas
+# - {text}: The conversation text to summarize
+
+model: "gpt-3.5-turbo"
+temperature: 0.5
