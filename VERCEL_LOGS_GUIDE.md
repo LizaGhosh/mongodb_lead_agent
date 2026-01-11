@@ -2,6 +2,22 @@
 
 This guide explains how to view and debug logs in Vercel to understand errors.
 
+## ⚠️ Important: Backend vs Frontend Logs
+
+**Backend Python Logs (What We Added):**
+- These use `print()` statements in Python
+- They appear in **Vercel Function Logs** (serverless function logs)
+- They are **NOT affected** by Next.js or React build optimizations
+- These are the logs you need for debugging API errors
+
+**Frontend Console Logs:**
+- These are `console.log()` in React/JavaScript
+- They appear in the **browser console** (F12)
+- React production builds may strip some console logs (this is normal)
+- These are less critical for debugging backend issues
+
+**Note**: If you see a message about "Next.js compiler removing logs" - this doesn't apply to you since you're using React, not Next.js. Your backend Python logs will work fine.
+
 ## ⚠️ Why You Might Not See Logs
 
 If you're not seeing any logs in Vercel, here are common reasons:

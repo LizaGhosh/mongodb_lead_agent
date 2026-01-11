@@ -83,6 +83,7 @@ const OnboardingForm = ({ onComplete }) => {
     setMessage('');
 
     try {
+      console.log('[OnboardingForm] Submitting form data:', formData);
       await submitOnboarding(formData);
       setMessage('Preferences saved successfully!');
       
@@ -93,8 +94,25 @@ const OnboardingForm = ({ onComplete }) => {
         }, 1000);
       }
     } catch (error) {
-      setMessage('Error saving preferences. Please try again.');
-      console.error(error);
+      console.error('[OnboardingForm] Submission error:', error);
+      console.error('[OnboardingForm] Error details:', {
+        message: error.message,
+        status: error.status,
+        isNetworkError: error.isNetworkError,
+        response: error.response?.data
+      });
+      
+      // Show more specific error message
+      let errorMessage = 'Error saving preferences. Please try again.';
+      if (error.isNetworkError) {
+        errorMessage = 'Network error: Unable to reach server. Please check your connection.';
+      } else if (error.status) {
+        errorMessage = `Error (${error.status}): ${error.message || 'Please try again.'}`;
+      } else if (error.message) {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
+      setMessage(errorMessage);
     } finally {
       setLoading(false);
     }

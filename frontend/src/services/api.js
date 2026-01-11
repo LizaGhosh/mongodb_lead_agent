@@ -19,6 +19,7 @@ const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 30000, // 30 second timeout for mobile networks
   // Don't set Content-Type for multipart/form-data - let browser set it with boundary
 });
 
@@ -152,11 +153,53 @@ export const clearAllData = async () => {
  */
 export const submitOnboarding = async (formData) => {
   try {
-    const response = await api.post('/api/onboarding', formData);
+    console.log('[API] Submitting onboarding data:', formData);
+    console.log('[API] API Base URL:', API_BASE_URL);
+    console.log('[API] Full URL will be:', `${API_BASE_URL}/api/onboarding`);
+    
+    const response = await api.post('/api/onboarding', formData, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    console.log('[API] Onboarding response received:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error submitting onboarding:', error);
-    throw error;
+    console.error('[API] Error submitting onboarding:', error);
+    
+    // Detailed error logging
+    if (error.response) {
+      // Server responded with error status
+      console.error('[API] Response error:', error.response.data);
+      console.error('[API] Status code:', error.response.status);
+      console.error('[API] Response headers:', error.response.headers);
+      
+      // Create a more descriptive error
+      const errorMessage = error.response.data?.detail || error.response.data?.error || error.response.data?.message || 'Unknown server error';
+      const enhancedError = new Error(`Server error (${error.response.status}): ${errorMessage}`);
+      enhancedError.status = error.response.status;
+      enhancedError.response = error.response;
+      throw enhancedError;
+    } else if (error.request) {
+      // Request was made but no response received
+      console.error('[API] No response received:', error.request);
+      console.error('[API] This could mean:');
+      console.error('  - Server is down or unreachable');
+      console.error('  - Network connectivity issue');
+      console.error('  - CORS blocking the request');
+      console.error('  - Request timeout');
+      console.error('[API] Request URL:', error.config?.url);
+      console.error('[API] Request method:', error.config?.method);
+      
+      const enhancedError = new Error('Network error: No response from server. Check if the API is accessible.');
+      enhancedError.isNetworkError = true;
+      throw enhancedError;
+    } else {
+      // Error setting up the request
+      console.error('[API] Request setup error:', error.message);
+      throw error;
+    }
   }
 };
 

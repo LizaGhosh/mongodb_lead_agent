@@ -26,12 +26,27 @@ async def submit_onboarding(request: OnboardingRequest):
     """Submit onboarding form and save user preferences"""
     user_id = "default"  # Can be extended to support multiple users
     try:
+        print(f"[ONBOARDING] Received onboarding request for user: {user_id}")
+        print(f"[ONBOARDING] Request data: use_case={request.use_case}, intent={request.intent[:50] if request.intent else None}...")
+        
         db = get_database()
+        print(f"[ONBOARDING] Database connection established")
         
         # Analyze comments if provided
         extracted_preferences = {}
         if request.comments:
-            extracted_preferences = analyze_comments(request.comments)
+            print(f"[ONBOARDING] Analyzing comments (length: {len(request.comments)})")
+            try:
+                extracted_preferences = analyze_comments(request.comments)
+                print(f"[ONBOARDING] Comments analyzed successfully")
+            except Exception as e:
+                print(f"[ONBOARDING] Error analyzing comments: {e}")
+                extracted_preferences = {}
+        
+        # Process job_titles - handle empty strings properly
+        job_titles_list = []
+        if request.job_titles and request.job_titles.strip():
+            job_titles_list = [title.strip() for title in request.job_titles.split(",") if title.strip()]
         
         # Build user preferences document
         user_prefs = {
@@ -47,7 +62,7 @@ async def submit_onboarding(request: OnboardingRequest):
             "priorities": {
                 "industries": request.industries,
                 "company_sizes": request.company_sizes,
-                "job_titles": request.job_titles.split(",") if request.job_titles else []
+                "job_titles": job_titles_list
             },
             "extracted_preferences": extracted_preferences,
             "onboarding_comments": request.comments,
@@ -59,12 +74,14 @@ async def submit_onboarding(request: OnboardingRequest):
             "updated_at": datetime.now()
         }
         
+        print(f"[ONBOARDING] Saving user preferences to database")
         # Save or update user preferences
-        db.user_preferences.update_one(
+        result = db.user_preferences.update_one(
             {"user_id": user_id},
             {"$set": user_prefs},
             upsert=True
         )
+        print(f"[ONBOARDING] Preferences saved successfully. Upserted: {result.upserted_id}, Modified: {result.modified_count}")
         
         return {
             "success": True,
@@ -73,7 +90,11 @@ async def submit_onboarding(request: OnboardingRequest):
         }
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[ONBOARDING] Error processing onboarding request: {str(e)}")
+        print(f"[ONBOARDING] Traceback: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"Error saving preferences: {str(e)}")
 
 def convert_objectid(obj):
     """Convert ObjectId and datetime to JSON-serializable types"""
