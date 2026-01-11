@@ -16,15 +16,19 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index"
+      "dest": "/api/index.py"
     },
     {
-      "src": "/(.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot))",
-      "dest": "/frontend/$1"
+      "src": "/static/(.*)",
+      "dest": "/frontend/build/static/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|json|map))",
+      "dest": "/frontend/build/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/index.html"
+      "dest": "/frontend/build/index.html"
     }
   ],
   "env": {

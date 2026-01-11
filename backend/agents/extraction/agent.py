@@ -117,3 +117,36 @@ class ExtractionAgent(BaseAgent):
         )
         
         return extracted
+    
+    def process_task(self, task_id):
+        """Process a task from the queue"""
+        task = self.db.tasks.find_one({"task_id": task_id})
+        if not task:
+            raise Exception(f"Task {task_id} not found")
+        
+        self.update_status("busy", task_id)
+        
+        try:
+            input_data = task.get("input_data", {})
+            text = input_data.get("text", "")
+            person_id = input_data.get("person_id")
+            
+            if not person_id:
+                raise Exception("person_id not found in task input")
+            
+            # Extract information
+            result = self.extract(text, person_id)
+            
+            # Update task with results
+            self.update_task(task_id, "completed", {
+                "person_id": person_id,
+                "extracted_data": result
+            })
+            
+            self.update_status("idle")
+            return result
+        
+        except Exception as e:
+            self.update_task(task_id, "failed", {"error": str(e)})
+            self.update_status("idle")
+            raise e

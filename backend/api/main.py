@@ -6,10 +6,10 @@ import logging
 import os
 from datetime import datetime
 
-# Configure logging - in serverless (Vercel), only log to console
-# File logging is disabled for serverless environments
-if os.getenv('VERCEL'):
-    # Serverless environment - only console logging
+# Configure logging - in serverless (Vercel) or Railway, only log to console
+# File logging is disabled for cloud environments
+if os.getenv('VERCEL') or os.getenv('RAILWAY_ENVIRONMENT'):
+    # Cloud environment - only console logging
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -62,4 +62,5 @@ def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

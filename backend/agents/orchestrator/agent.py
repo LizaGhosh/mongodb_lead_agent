@@ -8,6 +8,7 @@ from agents.categorization.agent import CategorizationAgent
 from datetime import datetime
 import logging
 import asyncio
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -38,53 +39,132 @@ class OrchestratorAgent(BaseAgent):
         self.categorization = CategorizationAgent()
     
     def process_meeting(self, meeting_text, location=None, audio_file=None, photo_files=None, user_id="default"):
-        """Process a new meeting through the agent workflow"""
+        """Process a new meeting through the multi-agent workflow using task queue"""
         self.update_status("busy")
         
         try:
-            # Step 1: Data Collection
-            logger.info("[ORCHESTRATOR] Step 1: Data Collection Agent")
-            print("Step 1: Data Collection Agent")
-            result = self.data_collection.process(meeting_text, location, audio_file, photo_files, user_id)
-            person_id = result["person_id"]
-            meeting_id = result["meeting_id"]
-            unified_text = result.get("unified_text", meeting_text)  # Get unified text from data collection
+            # Create workflow ID to track all tasks
+            workflow_id = str(uuid.uuid4())
+            logger.info(f"[ORCHESTRATOR] Starting workflow {workflow_id}")
             
-            # Log unified text before calling extraction agent
-            logger.info(f"[ORCHESTRATOR] ========== UNIFIED TEXT BEFORE EXTRACTION ==========")
-            logger.info(f"[ORCHESTRATOR] Meeting ID: {meeting_id}")
-            logger.info(f"[ORCHESTRATOR] Person ID: {person_id}")
-            logger.info(f"[ORCHESTRATOR] Timestamp: {datetime.now().isoformat()}")
-            logger.info(f"[ORCHESTRATOR] User ID: {user_id}")
-            logger.info(f"[ORCHESTRATOR] Unified text length: {len(unified_text)} characters")
-            logger.info(f"[ORCHESTRATOR] Unified text content:\n{unified_text}")
-            logger.info(f"[ORCHESTRATOR] =====================================================")
+            # Step 1: Create Data Collection task (highest priority, no dependencies)
+            data_collection_task_id = self.create_task(
+                task_type="data_collection",
+                input_data={
+                    "meeting_text": meeting_text,
+                    "location": location,
+                    "audio_file": None,  # Will be handled separately due to file upload
+                    "photo_files": None,  # Will be handled separately due to file upload
+                    "user_id": user_id,
+                    "workflow_id": workflow_id
+                },
+                priority=10  # Highest priority
+            )
+            logger.info(f"[ORCHESTRATOR] Created data_collection task: {data_collection_task_id}")
             
-            # Step 2: Information Extraction
-            logger.info("[ORCHESTRATOR] Step 2: Extraction Agent")
-            print("Step 2: Extraction Agent")
-            self.extraction.extract(unified_text, person_id)  # Pass unified text to extraction
-            
-            # Step 3: Summarization
-            logger.info("[ORCHESTRATOR] Step 3: Summarization Agent")
-            print("Step 3: Summarization Agent")
-            self.summarization.summarize(unified_text, meeting_id, user_id=user_id)  # Pass unified text
-            
-            # Step 4: Categorization
-            logger.info("[ORCHESTRATOR] Step 4: Categorization Agent")
-            print("Step 4: Categorization Agent")
-            priority_group = self.categorization.categorize(person_id, meeting_id, user_id=user_id)
+            # Files are passed directly to the workflow execution
+            # (In a fully distributed system, files would be stored in object storage)
+            result = self._execute_workflow(workflow_id, data_collection_task_id, audio_file, photo_files)
             
             self.update_status("idle")
-            
-            return {
-                "person_id": person_id,
-                "meeting_id": meeting_id,
-                "priority_group": priority_group,
-                "status": "completed"
-            }
+            return result
         
         except Exception as e:
             self.update_status("idle")
-            print(f"Error in workflow: {e}")
+            logger.error(f"[ORCHESTRATOR] Error in workflow: {e}")
             raise e
+    
+    def _execute_workflow(self, workflow_id, data_collection_task_id, audio_file=None, photo_files=None):
+        """Execute workflow by having agents process tasks from queue"""
+        import time
+        
+        # Step 1: Data Collection Agent processes task
+        data_collection_task = self.db.tasks.find_one({"task_id": data_collection_task_id})
+        if data_collection_task:
+            # Claim and process
+            if self.data_collection.claim_task(data_collection_task_id):
+                logger.info("[ORCHESTRATOR] Data Collection Agent claimed task")
+                result = self.data_collection.process_task(data_collection_task_id, audio_file, photo_files)
+                person_id = result["person_id"]
+                meeting_id = result["meeting_id"]
+                unified_text = result.get("unified_text", "")
+                
+                # Step 2: Create Extraction task (depends on data collection)
+                extraction_task_id = self.create_task(
+                    task_type="extraction",
+                    input_data={
+                        "text": unified_text,
+                        "person_id": person_id,
+                        "workflow_id": workflow_id
+                    },
+                    depends_on=[data_collection_task_id],
+                    priority=9
+                )
+                logger.info(f"[ORCHESTRATOR] Created extraction task: {extraction_task_id}")
+                
+                # Step 3: Create Summarization task (depends on data collection)
+                summarization_task_id = self.create_task(
+                    task_type="summarization",
+                    input_data={
+                        "text": unified_text,
+                        "meeting_id": meeting_id,
+                        "user_id": result.get("user_id", "default"),
+                        "workflow_id": workflow_id
+                    },
+                    depends_on=[data_collection_task_id],
+                    priority=8
+                )
+                logger.info(f"[ORCHESTRATOR] Created summarization task: {summarization_task_id}")
+                
+                # Step 4: Create Categorization task (depends on extraction and summarization)
+                categorization_task_id = self.create_task(
+                    task_type="categorization",
+                    input_data={
+                        "person_id": person_id,
+                        "meeting_id": meeting_id,
+                        "user_id": result.get("user_id", "default"),
+                        "workflow_id": workflow_id
+                    },
+                    depends_on=[extraction_task_id, summarization_task_id],
+                    priority=7
+                )
+                logger.info(f"[ORCHESTRATOR] Created categorization task: {categorization_task_id}")
+                
+                # Process remaining tasks
+                # Extraction
+                if self.extraction.claim_task(extraction_task_id):
+                    logger.info("[ORCHESTRATOR] Extraction Agent claimed task")
+                    self.extraction.process_task(extraction_task_id)
+                
+                # Summarization
+                if self.summarization.claim_task(summarization_task_id):
+                    logger.info("[ORCHESTRATOR] Summarization Agent claimed task")
+                    self.summarization.process_task(summarization_task_id)
+                
+                # Wait for dependencies, then Categorization
+                max_wait = 30  # seconds
+                waited = 0
+                while waited < max_wait:
+                    extraction_done = self.db.tasks.find_one({"task_id": extraction_task_id, "status": "completed"})
+                    summarization_done = self.db.tasks.find_one({"task_id": summarization_task_id, "status": "completed"})
+                    if extraction_done and summarization_done:
+                        break
+                    time.sleep(0.5)
+                    waited += 0.5
+                
+                if self.categorization.claim_task(categorization_task_id):
+                    logger.info("[ORCHESTRATOR] Categorization Agent claimed task")
+                    result = self.categorization.process_task(categorization_task_id)
+                    priority_group = result.get("priority_group", "P2")
+                else:
+                    priority_group = "P2"
+                
+                return {
+                    "person_id": person_id,
+                    "meeting_id": meeting_id,
+                    "priority_group": priority_group,
+                    "status": "completed",
+                    "workflow_id": workflow_id
+                }
+        
+        raise Exception("Failed to process workflow")

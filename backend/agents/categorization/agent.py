@@ -245,3 +245,39 @@ class CategorizationAgent(BaseAgent):
             "urgency_level": "",
             "intent_match_score": 0.0
         }
+    
+    def process_task(self, task_id):
+        """Process a task from the queue"""
+        task = self.db.tasks.find_one({"task_id": task_id})
+        if not task:
+            raise Exception(f"Task {task_id} not found")
+        
+        self.update_status("busy", task_id)
+        
+        try:
+            input_data = task.get("input_data", {})
+            person_id = input_data.get("person_id")
+            meeting_id = input_data.get("meeting_id")
+            user_id = input_data.get("user_id", "default")
+            
+            if not person_id or not meeting_id:
+                raise Exception("person_id or meeting_id not found in task input")
+            
+            # Categorize
+            priority_group = self.categorize(person_id, meeting_id, user_id)
+            
+            # Update task with results
+            self.update_task(task_id, "completed", {
+                "person_id": person_id,
+                "meeting_id": meeting_id,
+                "priority_group": priority_group
+            })
+            
+            self.update_status("idle")
+            return {"priority_group": priority_group, "person_id": person_id, "meeting_id": meeting_id}
+        
+        except Exception as e:
+            logger.error(f"[CATEGORIZATION] Error processing task {task_id}: {e}")
+            self.update_task(task_id, "failed", {"error": str(e)})
+            self.update_status("idle")
+            raise e
