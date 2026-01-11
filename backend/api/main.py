@@ -98,8 +98,10 @@ if os.getenv('VERCEL'):
             raise
 
 # Include routers
-# On Vercel, the /api prefix is already handled by routing, so we use it for both local and Vercel
-# The routes will work as /api/meetings in both environments
+# On Vercel, the /api prefix is preserved in the path when it reaches FastAPI
+# So we keep the /api prefix for both local and Vercel environments
+# Vercel routes /api/* to the serverless function, and Mangum preserves the full path
+# So a request to /api/onboarding in Vercel matches /api/onboarding route in FastAPI
 app.include_router(meetings.router, prefix="/api", tags=["meetings"])
 app.include_router(groups.router, prefix="/api", tags=["groups"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
