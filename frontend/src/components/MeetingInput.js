@@ -203,7 +203,25 @@ const MeetingInput = ({ onMeetingSubmitted }) => {
     } catch (error) {
       console.error('[FRONTEND] Error submitting meeting:', error);
       console.error('[FRONTEND] Error details:', error.response?.data || error.message);
-      setMessage('Error submitting meeting. Please try again.');
+      
+      // Show more specific error messages
+      let errorMessage = 'Error submitting meeting. ';
+      
+      if (error.status === 404) {
+        errorMessage += 'API endpoint not found. Please check if the server is running.';
+      } else if (error.status === 500) {
+        errorMessage += 'Server error occurred. Please try again later.';
+      } else if (error.status === 503) {
+        errorMessage += 'Service unavailable. Database connection may be down.';
+      } else if (error.isNetworkError) {
+        errorMessage += 'Network error. Check your internet connection.';
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'Please try again.';
+      }
+      
+      setMessage(errorMessage);
     } finally {
       setLoading(false);
     }

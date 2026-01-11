@@ -43,7 +43,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add middleware to log requests and handle errors (only in Vercel)
+if os.getenv('VERCEL'):
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        logger.info(f"[VERCEL] Request: {request.method} {request.url.path}")
+        logger.info(f"[VERCEL] Query params: {dict(request.query_params)}")
+        try:
+            response = await call_next(request)
+            logger.info(f"[VERCEL] Response status: {response.status_code}")
+            return response
+        except Exception as e:
+            logger.error(f"[VERCEL] Error processing request: {str(e)}", exc_info=True)
+            # Check if it's a MongoDB connection error
+            if "MongoDB" in str(e) or "Connection" in str(e) or "pymongo" in str(e).lower():
+                return JSONResponse(
+                    status_code=503,
+                    content={"error": "Database connection failed", "detail": "MongoDB connection error. Please check network access settings."}
+                )
+            raise
+
 # Include routers
+# On Vercel, the /api prefix is already handled by routing, so we use it for both local and Vercel
+# The routes will work as /api/meetings in both environments
 app.include_router(meetings.router, prefix="/api", tags=["meetings"])
 app.include_router(groups.router, prefix="/api", tags=["groups"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
@@ -58,7 +85,29 @@ def root():
 
 @app.get("/api/health")
 def health():
+    """Health check endpoint"""
     return {"status": "healthy"}
+
+@app.get("/api/health/db")
+def health_db():
+    """Health check endpoint with MongoDB connection test"""
+    try:
+        from database.connection import get_database
+        db = get_database()
+        # Test MongoDB connection
+        db.admin.command('ping')
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "mongodb": "accessible"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e),
+            "message": "MongoDB connection failed. Check network access settings in MongoDB Atlas."
+        }
 
 if __name__ == "__main__":
     import uvicorn

@@ -87,11 +87,37 @@ export const submitMeeting = async (text, location = null, audioBlob = null, pho
     return response.data;
   } catch (error) {
     console.error('[API] Error submitting meeting:', error);
+    
+    // Detailed error logging
     if (error.response) {
+      // Server responded with error status
       console.error('[API] Response error:', error.response.data);
       console.error('[API] Status code:', error.response.status);
+      console.error('[API] Response headers:', error.response.headers);
+      
+      // Create a more descriptive error
+      const errorMessage = error.response.data?.detail || error.response.data?.error || error.response.data?.message || 'Unknown server error';
+      const enhancedError = new Error(`Server error (${error.response.status}): ${errorMessage}`);
+      enhancedError.status = error.response.status;
+      enhancedError.response = error.response;
+      throw enhancedError;
+    } else if (error.request) {
+      // Request was made but no response received
+      console.error('[API] No response received:', error.request);
+      console.error('[API] This could mean:');
+      console.error('  - Server is down or unreachable');
+      console.error('  - Network connectivity issue');
+      console.error('  - CORS blocking the request');
+      console.error('  - Request timeout');
+      
+      const enhancedError = new Error('Network error: No response from server. Check if the API is accessible.');
+      enhancedError.isNetworkError = true;
+      throw enhancedError;
+    } else {
+      // Error setting up the request
+      console.error('[API] Request setup error:', error.message);
+      throw error;
     }
-    throw error;
   }
 };
 

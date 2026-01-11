@@ -22,4 +22,6 @@ from mangum import Mangum
 
 # Wrap FastAPI app with Mangum for AWS Lambda/Vercel compatibility
 # Mangum converts ASGI to AWS Lambda event format
+# Note: Vercel preserves the full path when routing /api/* to this function
+# So a request to /api/meetings will have path="/api/meetings" in the event
 handler = Mangum(app, lifespan="off")
