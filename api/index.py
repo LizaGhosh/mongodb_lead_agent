@@ -13,9 +13,13 @@ backend_path = os.path.join(project_root, 'backend')
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
+# Set Vercel environment variable
+os.environ['VERCEL'] = '1'
+
 # Import the FastAPI app from backend
 from api.main import app
+from mangum import Mangum
 
-# Export the app for Vercel
-# Vercel's @vercel/python runtime will handle the ASGI app
-handler = app
+# Wrap FastAPI app with Mangum for AWS Lambda/Vercel compatibility
+# Mangum converts ASGI to AWS Lambda event format
+handler = Mangum(app, lifespan="off")
