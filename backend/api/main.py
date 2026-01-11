@@ -34,24 +34,42 @@ app = FastAPI(title="Networking Assistant API")
 
 # CORS middleware
 # Get allowed origins from environment variable or allow all for development
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
-if allowed_origins_env:
-    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",")]
-else:
-    allowed_origins = ["*"]
+# allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
+# if allowed_origins_env:
+#     allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",")]
+# else:
+#     allowed_origins = ["*"]
 
-# When using "*" with allow_credentials=True, CORS spec doesn't allow it
-# For mobile browsers, we need to be more explicit
-# If "*" is used, we'll set allow_credentials=False to avoid CORS issues
-use_credentials = "*" not in allowed_origins
+# # When using "*" with allow_credentials=True, CORS spec doesn't allow it
+# # For mobile browsers, we need to be more explicit
+# # If "*" is used, we'll set allow_credentials=False to avoid CORS issues
+# use_credentials = "*" not in allowed_origins
+
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
+
+if allowed_origins_env:
+    allowed_origins = [o.strip().rstrip("/") for o in allowed_origins_env.split(",")]
+else:
+    # Default to localhost for local development
+    allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=use_credentials,
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=allowed_origins,
+#     allow_credentials=use_credentials,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 # Add middleware to log requests and handle errors (only in Vercel)
 if os.getenv('VERCEL'):

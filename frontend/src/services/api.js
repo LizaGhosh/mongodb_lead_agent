@@ -2,20 +2,29 @@
 import axios from 'axios';
 
 // Use relative URL for Vercel deployment, or environment variable, or fallback to localhost
-const getApiBaseUrl = () => {
-  // If REACT_APP_API_URL is set, use it
-  if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
-  }
-  // If running on Vercel (production), use relative URL
-  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return ''; // Relative URL - same domain
-  }
-  // Local development fallback
-  return 'http://localhost:8000';
-};
+// const getApiBaseUrl = () => {
+//   // If REACT_APP_API_URL is set, use it
+//   if (process.env.REACT_APP_API_URL) {
+//     return process.env.REACT_APP_API_URL;
+//   }
+//   // If running on Vercel (production), use relative URL
+//   if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+//     return ''; // Relative URL - same domain
+//   }
+//   // // Local development fallback
+//   return 'http://localhost:8000';
+// };
 
-const API_BASE_URL = getApiBaseUrl();
+
+
+// const API_BASE_URL = getApiBaseUrl();
+// Determine API base URL
+const API_BASE_URL =
+  process.env.NODE_ENV === 'development'
+    ? 'http://localhost:8000'
+    : ''; // Relative URL in production / Vercel
+
+    
 
 const api = axios.create({
   baseURL: API_BASE_URL,
